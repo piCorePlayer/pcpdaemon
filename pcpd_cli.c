@@ -72,11 +72,11 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	// optind is for the extra arguments 
-	// which are not parsed 
+	// optind is for the extra arguments
+	// which are not parsed
 //	for(; optind < argc; optind++){
-//		printf("extra arguments: %s\n", argv[optind]);  
-//	} 
+//		printf("extra arguments: %s\n", argv[optind]);
+//	}
 
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
@@ -126,11 +126,13 @@ int main(int argc, char *argv[]) {
 				if (FD_ISSET(sock, &readfd)) {
 					memset(buffer, 0, sizeof(buffer));
 					count = recvfrom(sock, buffer, 1024, 0, (struct sockaddr*)&server_addr, &addr_len);
+					if(verbose)
+						printf(buffer);
 					char *tmp_ip = inet_ntoa(server_addr.sin_addr);
 					if (strstr(buffer, FINDER_ACK)) {
 						bool newdevice = true;
 						for (i=0; i<count; i++){
-							if (strstr(found_ip[i], tmp_ip)){
+							if (strcmp(found_ip[i], tmp_ip) == 0){
 								newdevice=false;
 							}
 						}
@@ -144,7 +146,7 @@ int main(int argc, char *argv[]) {
 							if (playertabs)
 								printf("%s,%s,1\n", host, inet_ntoa(server_addr.sin_addr));
 							else
-								printf("%-24s v%-10s   %-22s %s\n", host, version, kernel, inet_ntoa(server_addr.sin_addr));
+								printf("%-24s %-10s   %-22s %s\n", host, version, kernel, inet_ntoa(server_addr.sin_addr));
 							pcp_devices_found++;
 						}
 					}

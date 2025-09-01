@@ -70,10 +70,10 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	// optind is for the extra arguments 
-	// which are not parsed 
+	// optind is for the extra arguments
+	// which are not parsed
 //	for(; optind < argc; optind++){
-//		printf("extra arguments: %s\n", argv[optind]);  
+//		printf("extra arguments: %s\n", argv[optind]);
 //	} 
 
 	if (uname(&unamebuf) < 0) {
@@ -132,8 +132,10 @@ int main(int argc, char *argv[]) {
 			if (FD_ISSET(sock, &readfd)) {
 				count = recvfrom(sock, buffer, 1024, 0, (struct sockaddr*)&client_addr, &addr_len);
 				if (strstr(buffer, FINDER_PKT)) {
-					if (verbose)
+					if (verbose){
 						printf("\nClient connection information:\n\t IP: %s, Port: %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+						printf("ACK\n");
+					}
 					memcpy(buffer, ACK, strlen(ACK)+1);
 					count = sendto(sock, buffer, strlen(buffer), 0, (struct sockaddr*)&client_addr, addr_len);
 				}
