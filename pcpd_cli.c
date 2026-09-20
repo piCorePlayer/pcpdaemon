@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #define FINDER_PKT "pCP Request"
 #define FINDER_ACK "Found"
@@ -138,13 +140,49 @@ int main(int argc, char *argv[]) {
 						}
 						if (newdevice) {
 							strcpy(found_ip[pcp_devices_found], tmp_ip);
+
+							// Check if the device is also listening on port 443 (HTTPS)
+							bool https_open = false;
+							int check_sock = socket(AF_INET, SOCK_STREAM, 0);
+							if (check_sock >= 0) {
+								// Set non-blocking so connect() doesn't hang
+								int flags = fcntl(check_sock, F_GETFL, 0);
+								fcntl(check_sock, F_SETFL, flags | O_NONBLOCK);
+
+								struct sockaddr_in https_addr;
+								memset(&https_addr, 0, sizeof(https_addr));
+								https_addr.sin_family = AF_INET;
+								https_addr.sin_port = htons(443);
+								https_addr.sin_addr = server_addr.sin_addr;
+
+								int cret = connect(check_sock, (struct sockaddr*)&https_addr, sizeof(https_addr));
+								if (cret == 0) {
+									https_open = true;
+								} else if (errno == EINPROGRESS) {
+									fd_set wfd;
+									FD_ZERO(&wfd);
+									FD_SET(check_sock, &wfd);
+									struct timeval https_timeout;
+									https_timeout.tv_sec = 0;
+									https_timeout.tv_usec = 300000; // 300ms
+									if (select(check_sock + 1, NULL, &wfd, NULL, &https_timeout) > 0) {
+										int so_error = 0;
+										socklen_t len = sizeof(so_error);
+										getsockopt(check_sock, SOL_SOCKET, SO_ERROR, &so_error, &len);
+										if (so_error == 0)
+											https_open = true;
+									}
+								}
+								close(check_sock);
+							}
+
 							// Skip over Found: in string.
 							char *pbuffer = buffer + 6;
 							char *host = strtok(pbuffer, "&&");
 							char *version = strtok(NULL, "&&");
 							char *kernel = strtok(NULL, "&&");
 							if (playertabs)
-								printf("%s,%s,1\n", host, inet_ntoa(server_addr.sin_addr));
+								printf("%s,%s,%d,1\n", host, inet_ntoa(server_addr.sin_addr), https_open ? 1 : 0);
 							else
 								printf("%-24s %-10s   %-22s %s\n", host, version, kernel, inet_ntoa(server_addr.sin_addr));
 							pcp_devices_found++;
